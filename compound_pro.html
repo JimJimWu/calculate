@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#090d16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>量化複利與信貸槓桿實驗室 Pro v3.0</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              925: '#0c1220',
+              950: '#070b14'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* 自訂捲軸與滑桿美學 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      opacity: 1;
+    }
+
+    /* 自訂 Range Slider 軌道與滑塊 */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 999px;
+      background: #1e293b;
+      border: 1px solid #334155;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      background: #6366f1;
+      border: 2px solid #e0e7ff;
+      margin-top: -7px;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: #818cf8;
+    }
+    input[type=range].emerald-slider::-webkit-slider-thumb {
+      background: #10b981;
+      border-color: #d1fae5;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+    }
+    input[type=range].rose-slider::-webkit-slider-thumb {
+      background: #f43f5e;
+      border-color: #ffe4e6;
+      box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
+    }
+    input[type=range].amber-slider::-webkit-slider-thumb {
+      background: #f59e0b;
+      border-color: #fef3c7;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    }
+    input[type=range].cyan-slider::-webkit-slider-thumb {
+      background: #06b6d4;
+      border-color: #cffafe;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+    }
+
+    /* 問號小圖示動畫與浮動提示窗 */
+    .help-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 17px;
+      height: 17px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 9999px;
+      background-color: rgba(99, 102, 241, 0.18);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+    .help-badge:hover, .help-badge:focus {
+      background-color: #6366f1;
+      color: #ffffff;
+      border-color: #818cf8;
+      transform: scale(1.1);
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+    }
+
+    /* 里程碑卡片動態特效 */
+    .milestone-card {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .milestone-card:hover {
+      transform: translateY(-2px);
+    }
+    .milestone-card.active-milestone {
+      ring: 2px solid #818cf8;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white pb-16">
+
+  <!-- 全域浮動名詞解釋氣泡框 (支援滑鼠滑過與手機點擊) -->
+  <div id="globalTooltip" class="fixed z-50 hidden max-w-xs sm:max-w-sm bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-xl p-4 shadow-2xl shadow-indigo-950/80 text-xs leading-relaxed pointer-events-auto transition-opacity duration-150">
+    <div class="flex items-start justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
+      <div class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+        <h4 id="tooltipTitle" class="font-bold text-indigo-300 text-sm">名詞解釋</h4>
+      </div>
+      <button onclick="hideTooltip()" class="text-slate-400 hover:text-white px-1 text-xs">✕</button>
+    </div>
+    <div id="tooltipBody" class="text-slate-200 space-y-1.5 whitespace-pre-line"></div>
+    <div id="tooltipFormula" class="mt-2.5 p-2 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-300 hidden"></div>
+  </div>
+
+  <!-- 頂部導覽與快捷參數列 -->
+  <header class="sticky top-0 z-30 bg-slate-950/85 backdrop-blur-md border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-white">量化複利與信貸槓桿實驗室</h1>
+            <span class="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Pro v3.0 智慧里程碑版</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">圖表內嵌複利里程碑旗標・質變拐點與倍數追蹤・小數點後三位輸入・30%股息稅與通膨折現</p>
+        </div>
+      </div>
+
+      <!-- 一鍵帶入歷史基準快捷鍵 -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-[11px] text-slate-400 mr-1">快速載入標的基準：</span>
+        <button onclick="applyPreset('conservative')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 transition flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>保守基準 (8.000%)
+        </button>
+        <button onclick="applyPreset('0050')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-900 hover:bg-indigo-950/80 text-slate-200 border border-slate-700/80 hover:border-indigo-500/50 transition flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-sky-400"></span>0050 台股 (9.500% / 免預扣)
+        </button>
+        <button onclick="applyPreset('sp500')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-900 hover:bg-emerald-950/80 text-slate-200 border border-slate-700/80 hover:border-emerald-500/50 transition flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>S&P 500 (10.200% / 30%稅)
+        </button>
+        <button onclick="applyPreset('qqq')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-900 hover:bg-purple-950/80 text-slate-200 border border-slate-700/80 hover:border-purple-500/50 transition flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-purple-400"></span>QQQ 納指 (10.630% / 30%稅)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 pt-6 space-y-6">
+
+    <!-- 頂部 6 大核心 KPI 數據看板 -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
+      <!-- KPI 1: 目前總投入金額 -->
+      <div class="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>目前總投入金額</span>
+          <span class="help-badge" data-term="total_invested">?</span>
+        </div>
+        <div id="kpiInvested" class="text-xl font-mono font-bold text-amber-400 mt-1.5 tracking-tight">NT$0</div>
+        <div id="kpiInvestedSub" class="text-[11px] text-slate-400 mt-1">佔最終名目資產 0.0%</div>
+      </div>
+
+      <!-- KPI 2: 最終名目總資產 -->
+      <div class="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between text-xs text-slate-300">
+          <span>最終名目總資產</span>
+          <span class="help-badge" data-term="nominal_asset">?</span>
+        </div>
+        <div id="kpiNominalTotal" class="text-xl font-mono font-bold text-indigo-400 mt-1.5 tracking-tight">NT$0</div>
+        <div id="kpiNominalSub" class="text-[11px] text-indigo-300/80 mt-1">本金放大倍數 0.00x</div>
+      </div>
+
+      <!-- KPI 3: 實質購買力總資產 (通膨折現) -->
+      <div class="bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between text-xs text-slate-300">
+          <span>實質購買力總資產</span>
+          <span class="help-badge" data-term="real_asset">?</span>
+        </div>
+        <div id="kpiRealTotal" class="text-xl font-mono font-bold text-cyan-400 mt-1.5 tracking-tight">NT$0</div>
+        <div id="kpiRealSub" class="text-[11px] text-cyan-300/80 mt-1">折現率：年通膨 2.500%</div>
+      </div>
+
+      <!-- KPI 4: 累積總利息 & 黃金交叉 -->
+      <div class="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between text-xs text-slate-300">
+          <span id="kpiInterestLabel">累積總利息 (淨獲利)</span>
+          <span class="help-badge" data-term="net_interest">?</span>
+        </div>
+        <div id="kpiInterest" class="text-xl font-mono font-bold text-emerald-400 mt-1.5 tracking-tight">NT$0</div>
+        <div id="kpiCrossYear" class="text-[11px] text-emerald-400/90 mt-1 font-medium">★ 黃金交叉：計算中</div>
+      </div>
+
+      <!-- KPI 5: 30%美股股息稅與通膨耗損 -->
+      <div class="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>股息稅摩擦少賺金額</span>
+          <span class="help-badge" data-term="tax_drag">?</span>
+        </div>
+        <div id="kpiTaxLoss" class="text-xl font-mono font-bold text-orange-400 mt-1.5 tracking-tight">NT$0</div>
+        <div id="kpiEffectiveRate" class="text-[11px] text-slate-400 mt-1">實質滾動年化：8.000%</div>
+      </div>
+
+      <!-- KPI 6: 信貸月付金與總利息成本 -->
+      <div class="bg-slate-900/90 border border-rose-500/30 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between text-xs text-slate-300">
+          <span>信貸月付金 / 總利息</span>
+          <span class="help-badge" data-term="loan_cost">?</span>
+        </div>
+        <div id="kpiLoanMonthly" class="text-xl font-mono font-bold text-rose-400 mt-1.5 tracking-tight">NT$0 / 月</div>
+        <div id="kpiLoanSub" class="text-[11px] text-rose-300/80 mt-1">信貸總利息：NT$0</div>
+      </div>
+    </section>
+
+    <!-- 主工作區：左側雙向同步輸入面板 (5欄) + 右側多軌視覺化圖表與智慧里程碑 (7欄) -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- 左側：精準參數控制區 (支援滑桿 + 直接輸入至小數點第三位) -->
+      <div class="lg:col-span-5 space-y-5">
+
+        <!-- 區塊 1：初始本金來源與信貸償還模式選擇器 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+              <h2 class="text-sm font-bold text-white">步驟 1：選擇本金性質與信貸償還模式</h2>
+            </div>
+            <span class="help-badge" data-term="repayment_modes">?</span>
+          </div>
+
+          <!-- 3 種模式單選卡 -->
+          <div class="grid grid-cols-1 gap-2.5" id="modeSelectorGroup">
+            <!-- 模式 A -->
+            <label id="cardModeB" class="flex items-start gap-3 p-3 rounded-xl border border-indigo-500 bg-indigo-950/25 cursor-pointer transition">
+              <input type="radio" name="loanMode" value="external" checked onchange="onLoanModeChange()" class="mt-1 accent-indigo-500">
+              <div class="text-xs">
+                <div class="font-bold text-white flex items-center gap-1.5 flex-wrap">
+                  模式 A：信貸本金 — 用「本業薪水／新資金」獨立償還
+                  <span class="px-1.5 py-0.5 text-[10px] rounded bg-indigo-500/30 text-indigo-200 font-semibold">推薦・不動用投資池</span>
+                </div>
+                <p class="text-slate-400 mt-1 leading-relaxed">
+                  期初本金來自借貸，但每月月付金完全由你的<strong>日常薪水額外支付</strong>。投資部位 100% 完整保留在市場內滾複利，絕不賣股還債。
+                </p>
+              </div>
+            </label>
+
+            <!-- 模式 B -->
+            <label id="cardModeC" class="flex items-start gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition">
+              <input type="radio" name="loanMode" value="internal" onchange="onLoanModeChange()" class="mt-1 accent-indigo-500">
+              <div class="text-xs">
+                <div class="font-bold text-slate-200 flex items-center gap-1.5">
+                  模式 B：信貸本金 — 由「每年投入資金／投資池」內扣償還
+                </div>
+                <p class="text-slate-400 mt-1 leading-relaxed">
+                  不額外拿薪水還債，而是在信貸還款期間，每年直接從你的「每年固定投入金額」或「投資池本金」中扣除信貸年付金，會削弱前期複利基數。
+                </p>
+              </div>
+            </label>
+
+            <!-- 模式 C -->
+            <label id="cardModeA" class="flex items-start gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition">
+              <input type="radio" name="loanMode" value="none" onchange="onLoanModeChange()" class="mt-1 accent-indigo-500">
+              <div class="text-xs">
+                <div class="font-bold text-slate-200 flex items-center gap-1.5">
+                  模式 C：100% 自有閒置本金（不借信貸／零槓桿）
+                </div>
+                <p class="text-slate-400 mt-1 leading-relaxed">
+                  期初單筆本金完全為自己的存款，無任何信貸月付金與貸款利息摩擦成本，純粹測試自有本金長線複利。
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <!-- 信貸進階勾選設定 -->
+          <div id="loanSubOptions" class="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800/90 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-rose-300 flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                信貸參數與利息扣除設定 (精準至 0.001%)
+              </span>
+              <button onclick="setExactLoanRate(2.145)" class="px-2 py-0.5 text-[11px] font-mono rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 transition">
+                套用範例 2.145%
+              </button>
+            </div>
+
+            <!-- 信貸總費用年百分率 APR (%) -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <label for="numLoanRate" class="text-slate-300 flex items-center">
+                  信貸年利率 APR (%)
+                  <span class="help-badge" data-term="loan_apr">?</span>
+                </label>
+                <div class="flex items-center gap-1">
+                  <input id="numLoanRate" type="number" min="0" max="15" step="0.001" value="2.145"
+                    class="w-28 bg-slate-900 border border-rose-500/40 focus:border-rose-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-rose-300 outline-none"
+                    oninput="syncFromNumber('LoanRate', this.value)" onblur="formatDecimalInput('numLoanRate', 3)">
+                  <span class="text-xs font-mono text-slate-400">%</span>
+                </div>
+              </div>
+              <input id="rngLoanRate" type="range" min="0" max="10" step="0.001" value="2.145" class="w-full rose-slider"
+                oninput="syncFromSlider('LoanRate', this.value, 3)">
+            </div>
+
+            <!-- 信貸還款年限 (年) -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <label for="numLoanYears" class="text-slate-300 flex items-center">
+                  信貸還款年限 (年)
+                  <span class="help-badge" data-term="loan_years">?</span>
+                </label>
+                <div class="flex items-center gap-1">
+                  <input id="numLoanYears" type="number" min="1" max="15" step="1" value="7"
+                    class="w-24 bg-slate-900 border border-rose-500/40 focus:border-rose-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-rose-300 outline-none"
+                    oninput="syncFromNumber('LoanYears', this.value)">
+                  <span class="text-xs text-slate-400">年</span>
+                </div>
+              </div>
+              <input id="rngLoanYears" type="range" min="1" max="10" step="1" value="7" class="w-full rose-slider"
+                oninput="syncFromSlider('LoanYears', this.value, 0)">
+            </div>
+
+            <!-- 勾選：是否在累積淨獲利中扣除信貸總利息 -->
+            <label class="flex items-start gap-2.5 pt-2 border-t border-slate-800/80 cursor-pointer text-xs text-slate-300">
+              <input id="chkDeductLoanInterest" type="checkbox" checked onchange="calculate()" class="mt-0.5 rounded accent-rose-500">
+              <span>
+                在「累積總利息（淨獲利）」中<strong>扣除信貸總利息支出</strong>，反映真實利差淨獲利
+                <span class="help-badge" data-term="deduct_loan_interest">?</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 區塊 2：本金、每年投入與預期報酬率設定 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+              <h2 class="text-sm font-bold text-white">步驟 2：設定投入本金與預期年化報酬率</h2>
+            </div>
+            <span class="text-[11px] text-slate-400">可拉動滑桿或直接輸入數字</span>
+          </div>
+
+          <!-- 1. 初始單筆本金 (PV) -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <label for="numPV" class="text-slate-300 font-medium flex items-center">
+                初始單筆本金 (PV)
+                <span class="help-badge" data-term="pv_lump_sum">?</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <span class="text-xs font-mono text-slate-400">NT$</span>
+                <input id="numPV" type="number" min="0" max="50000000" step="10000" value="1000000"
+                  class="w-32 bg-slate-950 border border-indigo-500/40 focus:border-indigo-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-indigo-300 outline-none"
+                  oninput="syncFromNumber('PV', this.value)">
+              </div>
+            </div>
+            <input id="rngPV" type="range" min="0" max="10000000" step="50000" value="1000000" class="w-full"
+              oninput="syncFromSlider('PV', this.value, 0)">
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>NT$0</span>
+              <span>NT$250萬</span>
+              <span>NT$500萬</span>
+              <span>NT$1,000萬+</span>
+            </div>
+          </div>
+
+          <!-- 2. 每年固定單筆投入 (PMT) -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex items-center justify-between text-xs">
+              <label for="numPMT" class="text-slate-300 font-medium flex items-center">
+                每年固定單筆投入 (PMT)
+                <span class="help-badge" data-term="pmt_annual">?</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <span class="text-xs font-mono text-slate-400">NT$</span>
+                <input id="numPMT" type="number" min="0" max="20000000" step="5000" value="120000"
+                  class="w-32 bg-slate-950 border border-indigo-500/40 focus:border-indigo-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-indigo-300 outline-none"
+                  oninput="syncFromNumber('PMT', this.value)">
+              </div>
+            </div>
+            <input id="rngPMT" type="range" min="0" max="2000000" step="10000" value="120000" class="w-full"
+              oninput="syncFromSlider('PMT', this.value, 0)">
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>NT$0</span>
+              <span>NT$50萬/年</span>
+              <span>NT$100萬/年</span>
+              <span>NT$200萬/年</span>
+            </div>
+          </div>
+
+          <!-- 3. 預期年化總報酬率 (%) -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex items-center justify-between text-xs">
+              <label for="numRate" class="text-slate-300 font-medium flex items-center">
+                預期年化總報酬率 (含息)
+                <span class="help-badge" data-term="total_return_rate">?</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <input id="numRate" type="number" min="0" max="35" step="0.001" value="10.200"
+                  class="w-28 bg-slate-950 border border-emerald-500/40 focus:border-emerald-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-emerald-300 outline-none"
+                  oninput="syncFromNumber('Rate', this.value)" onblur="formatDecimalInput('numRate', 3)">
+                <span class="text-xs font-mono text-slate-400">%</span>
+              </div>
+            </div>
+            <input id="rngRate" type="range" min="0" max="20" step="0.001" value="10.200" class="w-full emerald-slider"
+              oninput="syncFromSlider('Rate', this.value, 3)">
+          </div>
+
+          <!-- 4. 其中：現金股息殖利率 (%) -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex items-center justify-between text-xs">
+              <label for="numYield" class="text-slate-300 font-medium flex items-center">
+                其中：現金股息殖利率
+                <span class="help-badge" data-term="dividend_yield">?</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <input id="numYield" type="number" min="0" max="15" step="0.001" value="1.600"
+                  class="w-28 bg-slate-950 border border-emerald-500/40 focus:border-emerald-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-emerald-300 outline-none"
+                  oninput="syncFromNumber('Yield', this.value)" onblur="formatDecimalInput('numYield', 3)">
+                <span class="text-xs font-mono text-slate-400">%</span>
+              </div>
+            </div>
+            <input id="rngYield" type="range" min="0" max="8" step="0.001" value="1.600" class="w-full emerald-slider"
+              oninput="syncFromSlider('Yield', this.value, 3)">
+          </div>
+
+          <!-- 5. 總放置年限 (年) -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex items-center justify-between text-xs">
+              <label for="numYears" class="text-slate-300 font-medium flex items-center">
+                總放置投資年限 (n)
+                <span class="help-badge" data-term="investment_years">?</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <input id="numYears" type="number" min="1" max="60" step="1" value="20"
+                  class="w-24 bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-amber-300 outline-none"
+                  oninput="syncFromNumber('Years', this.value)">
+                <span class="text-xs text-slate-400">年</span>
+              </div>
+            </div>
+            <input id="rngYears" type="range" min="1" max="45" step="1" value="20" class="w-full amber-slider"
+              oninput="syncFromSlider('Years', this.value, 0)">
+          </div>
+        </div>
+
+        <!-- 區塊 3：美股 30% 股息預扣稅與通貨膨脹率設定 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+              <h2 class="text-sm font-bold text-white">步驟 3：稅務耗損 (30%股息稅) 與通膨折現</h2>
+            </div>
+            <span class="help-badge" data-term="tax_and_inflation">?</span>
+          </div>
+
+          <!-- 美股 30% 股息預扣稅開關 -->
+          <label class="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-950/90 border border-slate-800 cursor-pointer hover:border-orange-500/40 transition">
+            <div class="text-xs space-y-1">
+              <div class="font-bold text-orange-300 flex items-center">
+                計入美股 30% 現金股息預扣稅耗損
+                <span class="help-badge" data-term="us_withholding_tax">?</span>
+              </div>
+              <p class="text-slate-400 leading-relaxed">
+                投資美股 ETF (如 VOO/SPY/QQQ) 配發之現金股息會被美國國稅局預扣 30%，每年再投入的實質報酬率將減少 <code class="text-orange-300 font-mono">殖利率 × 30%</code>。買台股 0050 可取消勾選。
+              </p>
+            </div>
+            <input id="chkUSWithholdingTax" type="checkbox" checked onchange="calculate()" class="mt-1 w-4 h-4 accent-orange-500 shrink-0">
+          </label>
+
+          <!-- 預期年化通貨膨脹率 (%) -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex items-center justify-between text-xs">
+              <label for="numInflation" class="text-slate-300 font-medium flex items-center">
+                預期年化通貨膨脹率 (%)
+                <span class="help-badge" data-term="inflation_rate">?</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <input id="numInflation" type="number" min="0" max="15" step="0.001" value="2.500"
+                  class="w-28 bg-slate-950 border border-cyan-500/40 focus:border-cyan-400 rounded-lg px-2.5 py-1 text-right font-mono text-xs font-bold text-cyan-300 outline-none"
+                  oninput="syncFromNumber('Inflation', this.value)" onblur="formatDecimalInput('numInflation', 3)">
+                <span class="text-xs font-mono text-slate-400">%</span>
+              </div>
+            </div>
+            <input id="rngInflation" type="range" min="0" max="8" step="0.001" value="2.500" class="w-full cyan-slider"
+              oninput="syncFromSlider('Inflation', this.value, 3)">
+            <div class="flex justify-between text-[10px] text-slate-500">
+              <span>0.000% (無通膨)</span>
+              <span>台灣長期平均約 1.800% - 2.500%</span>
+              <span>高通膨 5.000%+</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 右側：四軌視覺化動態圖表 + 智慧複利里程碑走廊 + 診斷報告 (7欄) -->
+      <div class="lg:col-span-7 flex flex-col gap-5">
+
+        <!-- 動態四軌複利曲線圖 (內嵌里程碑旗標與即時互動資訊卡) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-3">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                四軌資產成長與複利里程碑軌跡圖
+                <span class="help-badge" data-term="chart_trajectories">?</span>
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5">
+                大圓點代表達成關鍵里程碑年度，滑鼠移過或點擊下方里程碑卡片即可彈出深度解析
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- 圖表里程碑標籤開關 -->
+              <label class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700/80 text-xs text-slate-300 cursor-pointer hover:border-indigo-500/60 transition select-none">
+                <input id="chkShowChartFlags" type="checkbox" checked onchange="renderChartOnly()" class="accent-indigo-500 rounded">
+                <span>圖表里程碑旗標</span>
+              </label>
+              <span id="badgeSpread" class="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                淨利差 +7.575%
+              </span>
+            </div>
+          </div>
+
+          <!-- Chart.js 畫布容器 -->
+          <div class="relative h-80 sm:h-[400px] w-full">
+            <canvas id="compoundChart"></canvas>
+          </div>
+
+          <!-- 互動式里程碑即時聚焦資訊卡 (當滑鼠滑過圖表或點擊里程碑時動態彈出詳情) -->
+          <div id="milestoneSpotlightBox" class="mt-4 p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 via-slate-950 to-emerald-950/40 border border-indigo-500/40 shadow-inner transition-all duration-200">
+            <!-- 由 JS 動態填入當前聚焦之里程碑或重點年度剖析 -->
+          </div>
+        </div>
+
+        <!-- 新增核心功能：智慧複利里程碑時間軸走廊 (點擊或滑過卡片自動連動圖表) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold">🏆</span>
+              <div>
+                <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
+                  智慧複利里程碑時間軸 (點擊或滑過卡片自動聚焦圖表)
+                  <span class="help-badge" data-term="milestones_guide">?</span>
+                </h3>
+                <p class="text-[11px] text-slate-400">系統自動偵測「複利質變拐點」、「利息超越本金」、「資產翻倍 (2x/3x/4x/5x)」與「千萬資產」關鍵年份</p>
+              </div>
+            </div>
+            <button onclick="clearMilestoneFocus()" class="text-[11px] text-indigo-300 hover:text-white px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500/40 transition self-start sm:self-auto">
+              重置圖表聚焦
+            </button>
+          </div>
+
+          <!-- 里程碑卡片網格 -->
+          <div id="milestoneCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            <!-- 由 JS 動態生成里程碑互動卡片 -->
+          </div>
+
+          <!-- 系統綜合財務診斷摘要 -->
+          <div id="diagnosticPanel" class="p-4 rounded-xl bg-slate-950/90 border border-slate-800/90 text-xs leading-relaxed space-y-2">
+          </div>
+        </div>
+
+        <!-- 財經專有名詞與數學公式快速百科 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+              核心財經名詞與量化公式圖鑑（點擊任一項目或「?」圖示即可查看詳解）
+            </h3>
+            <span class="text-[11px] text-slate-400">幫助建立長期持有的底層邏輯</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs">
+            <button onclick="openTermModal('qualitative_change')" class="text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition">
+              <div class="font-bold text-amber-300">1. 什麼是「複利質變拐點」？</div>
+              <div class="text-slate-400 text-[11px] mt-0.5 truncate">單年投資收益正式超越每年新投入本金</div>
+            </button>
+            <button onclick="openTermModal('net_interest')" class="text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition">
+              <div class="font-bold text-emerald-300">2. 什麼是「複利黃金交叉」？</div>
+              <div class="text-slate-400 text-[11px] mt-0.5 truncate">累積總利息正式超越目前總投入本金</div>
+            </button>
+            <button onclick="openTermModal('repayment_modes')" class="text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition">
+              <div class="font-bold text-indigo-300">3. 薪水獨立還貸 vs 內扣還貸</div>
+              <div class="text-slate-400 text-[11px] mt-0.5 truncate">為何用本業現金流還款能完整保留複利？</div>
+            </button>
+            <button onclick="openTermModal('us_withholding_tax')" class="text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition">
+              <div class="font-bold text-orange-300">4. 美股 30% 股息預扣稅耗損</div>
+              <div class="text-slate-400 text-[11px] mt-0.5 truncate">為何低殖利率的 QQQ/S&P500 稅損極低？</div>
+            </button>
+            <button onclick="openTermModal('real_asset')" class="text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition">
+              <div class="font-bold text-cyan-300">5. 通膨折現與實質購買力</div>
+              <div class="text-slate-400 text-[11px] mt-0.5 truncate">20 年後的 1,400 萬相當於現在多少錢？</div>
+            </button>
+            <button onclick="openTermModal('loan_apr')" class="text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition">
+              <div class="font-bold text-rose-300">6. 本息均攤與 APR 正利差</div>
+              <div class="text-slate-400 text-[11px] mt-0.5 truncate">信貸 2.145% 如何創造長期槓桿套利空間？</div>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 底部：逐年資產、里程碑標記、稅損、通膨折現與信貸現金流明細表 -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div class="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            逐年複利滾動、達成里程碑、30% 股息稅損與實質購買力明細表
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">點擊任一年度列即可在上方圖表鎖定並查看該年度里程碑詳解</p>
+        </div>
+        <button onclick="exportCSV()" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-1.5 self-start sm:self-auto shadow-md shadow-indigo-600/20">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          匯出 CSV 試算表 (含里程碑)
+        </button>
+      </div>
+
+      <div class="overflow-x-auto max-h-[520px]">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead class="bg-slate-950 text-slate-400 sticky top-0 z-10 border-b border-slate-800">
+            <tr>
+              <th class="py-3 px-3.5 whitespace-nowrap">年度與達成里程碑</th>
+              <th class="py-3 px-3.5 whitespace-nowrap">目前總投入金額</th>
+              <th class="py-3 px-3.5 whitespace-nowrap">當年新增複利收益</th>
+              <th class="py-3 px-3.5 whitespace-nowrap">當年毛股息 / 30%稅</th>
+              <th class="py-3 px-3.5 whitespace-nowrap">信貸年還款支出</th>
+              <th class="py-3 px-3.5 whitespace-nowrap">累積總利息 (淨獲利)</th>
+              <th class="py-3 px-3.5 whitespace-nowrap">期末名目總資產 (倍數)</th>
+              <th class="py-3 px-3.5 whitespace-nowrap">實質購買力 (通膨折現)</th>
+            </tr>
+          </thead>
+          <tbody id="yearlyTableBody" class="divide-y divide-slate-800/70 font-mono text-[11px] sm:text-xs"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // ============================================================================
+    // 1. 財經專有名詞與數學公式知識庫
+    // ============================================================================
+    const TERM_GLOSSARY = {
+      qualitative_change: {
+        title: '複利質變拐點 (Compounding Inflection Point)',
+        body: '指「當年度投資組合自己賺到的複利收益」正式超越「你每年額外投入的本金 (PMT)」的那一年。\n在質變拐點之前，資產增加主要靠你辛苦存錢投入；一旦跨過這個拐點，你的資產引擎就算不靠新資金，每年自動滾出的錢也比你存的還多，是複利真正開始「質變」的第一個重要里程碑！',
+        formula: '質變條件：當年度投資淨收益 (Annual Return) > 每年固定單筆投入 (PMT)'
+      },
+      milestones_guide: {
+        title: '智慧複利里程碑系統說明',
+        body: '系統會自動掃描整個投資週期，標記出 6 大類關鍵財務轉折點：\n1. 🌱 複利質變拐點：單年投資收益 > 每年新投入本金。\n2. ⚡ 黃金交叉日：累積總利息 ≥ 目前總投入金額（綠線向上穿越黃虛線）。\n3. 🔓 信貸結清自由日：信貸期滿結清，每月現金流徹底解放。\n4. 🚀 總資產達成本 2倍 / 3倍 / 4倍 / 5倍：名目總資產除以目前總投入本金達整數倍。\n5. 👑 千萬資產里程碑：期末總資產正式突破 NT$1,000萬 / NT$2,000萬。\n6. 🛡️ 實質購買力翻倍：扣除通膨折現後的真實購買力達總投入成本 2 倍以上。',
+        formula: '點擊任一里程碑卡片，圖表會自動發光標示該年度並顯示完整數據！'
+      },
+      total_invested: {
+        title: '目前總投入金額 (Total Invested Capital)',
+        body: '代表截至該年度為止，實際投入投資池的累積本金總和。包含第 0 年初的「初始單筆本金 (PV)」加上後續每年固定投入的「年度單筆資金 (PMT × 年數)」。若選擇「信貸由投資池內扣還款」，則內扣償還銀行的金額會從投入本金中扣除。',
+        formula: '目前總投入 = PV + (PMT × n)'
+      },
+      nominal_asset: {
+        title: '最終名目總資產 (Nominal Future Value)',
+        body: '未扣除通貨膨脹折現前，你證券帳戶上實際顯示的「期末帳面總金額（本利和）」。若開啟美股 30% 股息預扣稅，此數值已自動反映扣除股息稅後的實際複利滾動結果。',
+        formula: 'FV = PV×(1 + r_eff)^n + PMT×[((1 + r_eff)^n - 1) / r_eff]'
+      },
+      real_asset: {
+        title: '實質購買力總資產 (Inflation-Adjusted Real Value)',
+        body: '考慮物價上漲（通貨膨脹）後，將未來的名目總資產折算回「現在的物價水準」相當於多少購買力。例如年通膨 2.500% 下，20 年後的 NT$1,450 萬，實質購買力約相當於現在的 NT$885 萬。',
+        formula: '實質購買力資產 = 名目總資產 ÷ (1 + 通膨率)^n'
+      },
+      net_interest: {
+        title: '累積總利息 & 複利黃金交叉 (Golden Cross)',
+        body: '「累積總利息」等於期末名目總資產減去目前總投入金額。當圖表中的「翠綠實線（累積總利息）」向上突破「琥珀虛線（目前總投入金額）」時，稱為「複利黃金交叉」，代表你的資產由錢滾錢產生的累計獲利，已經正式超越你歷年掏出的總本金！',
+        formula: '實質淨獲利 = (期末總資產 - 目前總投入) - (勾選時扣除之信貸總利息)'
+      },
+      tax_drag: {
+        title: '美股 30% 股息預扣稅耗損 (Dividend Tax Drag)',
+        body: '非美國稅務居民投資美股 ETF（如 VOO、SPY、QQQ）時，配發的現金股息會被美國國稅局（IRS）直接預扣 30%。這會使你的實際年化複利速率下降「現金殖利率 × 30%」。此欄位計算出因這 30% 稅負在 n 年複利放大下少賺的總資產差額。',
+        formula: '扣稅後實質年化報酬 r_eff = 總報酬率 - (現金殖利率 × 30%)'
+      },
+      loan_cost: {
+        title: '信貸剛性月付金與總利息成本',
+        body: '採用銀行標準「本息平均攤還法」計算。信貸期間內每個月必須準時繳納固定的現金月付金。只要你的長期投資有效年化報酬率顯著高於信貸年利率（APR），且本業薪水現金流穩定不斷鏈，就能享有正利差槓桿效益。',
+        formula: '月付金 M = P × [i(1+i)^m] ÷ [(1+i)^m - 1] ，其中月利率 i = APR ÷ 12'
+      },
+      repayment_modes: {
+        title: '三種本金與信貸償還模式差異詳解',
+        body: '• 模式 A（本業薪水獨立償還）：借信貸單筆投入，每月用薪水還銀行錢，完全不動用股票帳戶。能 100% 發揮期初大本金的指數複利效應。\n• 模式 B（投資池內扣償還）：不拿額外薪水還債，而是每年從預計投入的資金或股票池中抽錢還銀行，會明顯降低前幾年的複利基數。\n• 模式 C（全自有本金）：不借錢、無利息成本，純用自有存款複利。',
+        formula: '推薦策略：若本業自由現金流充裕，模式 A 的長期終值最高。'
+      },
+      loan_apr: {
+        title: '信貸總費用年百分率 (APR, 支援小數點後三位)',
+        body: '將信貸的名目利率加上開辦費、手續費後，換算出的真實年化借款資金成本。本系統支援精準至小數點後三位輸入（例如優質客群常見的 2.145% 或 2.685%）。',
+        formula: '實質套利利差 (Spread) = 扣稅後年化報酬率 r_eff - 信貸 APR'
+      },
+      loan_years: {
+        title: '信貸還款年限 (Loan Term)',
+        body: '台灣個人信用貸款最常見的還款期限為 5 年（60 期）至 7 年（84 期），部分專案可達 8 至 10 年。還款年限越長，每月剛性月付金壓力越小，但累積支付給銀行的總利息會增加。',
+        formula: '總期數 m = 還款年限 × 12 個月'
+      },
+      deduct_loan_interest: {
+        title: '於淨獲利中扣除信貸總利息支出',
+        body: '勾選後，系統會在計算「累積總利息（淨獲利）」時，將你在整個信貸期間支付給銀行的「信貸總利息」扣除，讓你一眼看出扣掉銀行利息成本後的真實淨賺金額。',
+        formula: '真實淨獲利 = 投資組合總增值 - 銀行信貸總利息'
+      },
+      pv_lump_sum: {
+        title: '初始單筆本金 (Present Value / Lump Sum)',
+        body: '第 0 年期初一次性投入市場的大額本金（例如撥款下來的信貸資金或既有大筆存款）。在數學模型中，這筆錢享有最完整的 n 年指數複利時間。',
+        formula: '期初本金終值 FV_pv = PV × (1 + r_eff)^n'
+      },
+      pmt_annual: {
+        title: '每年固定單筆投入 (Annual Contribution PMT)',
+        body: '除了期初大筆本金外，後續每滿一年固定追加投入的單筆資金（例如每年領到年終獎金或分紅後固定加碼）。能持續擴大本金基數並平滑市場波動。',
+        formula: '年金終值 FV_pmt = PMT × [((1 + r_eff)^n - 1) ÷ r_eff]'
+      },
+      total_return_rate: {
+        title: '預期年化總報酬率 (CAGR / Total Return)',
+        body: '包含「股價上漲的資本利得」加上「配發的現金股息再投入」的年化複合成長率。歷史數據參考：台股 0050 長期約 9.500%，美股 S&P 500 約 10.200%，科技股 QQQ 約 10.630%。',
+        formula: '年化總報酬率 = 資本利得成長率 + 現金股息殖利率'
+      },
+      dividend_yield: {
+        title: '現金股息殖利率 (Cash Dividend Yield)',
+        body: '總報酬率當中，每年以「現金股利」形式配發的比例。例如 S&P 500 總報酬約 10.200%，其中僅約 1.600% 為現金股息，其餘 8.600% 為股價上漲；QQQ 殖利率更僅約 0.600%。殖利率越低，受美股 30% 股息預扣稅的影響就越小！',
+        formula: '年度毛現金股息 = 當年度資產總值 × 現金股息殖利率'
+      },
+      investment_years: {
+        title: '總放置投資年限 (Time Horizon n)',
+        body: '在複利公式中，時間 n 位於「指數次方」的位置。當放置時間超過 15 至 20 年，指數曲線會產生爆發性斜率，撫平短期市場波動。',
+        formula: '複利放大因子 = (1 + r_eff)^n'
+      },
+      tax_and_inflation: {
+        title: '雙重摩擦成本：稅務與通貨膨脹',
+        body: '長期投資不能只看名目報酬。將「美股 30% 股息稅」與「每年通貨膨脹率」同時納入模型，才能算出真正屬於你口袋的實質購買力。',
+        formula: '實質年化購買力成長率 ≈ (1 + r_eff) ÷ (1 + 通膨率) - 1'
+      },
+      us_withholding_tax: {
+        title: '美股 30% 股息預扣稅 (IRS 30% Withholding Tax)',
+        body: '台灣投資人買進美國註冊之 ETF（如 VOO、IVV、SPY、QQQ），配息時美國政府會自動預扣 30% 稅款（資本利得價差則完全免稅）。\n• S&P 500 (殖利率 1.600%)：每年稅損僅 1.600% × 30% = 0.480%\n• QQQ (殖利率 0.600%)：每年稅損僅 0.600% × 30% = 0.180%\n因此長期持有低配息、高成長的美股指數，30% 股息稅對整體複利的耗損其實非常微小！',
+        formula: '每年稅損率 = 現金股息殖利率 × 30%'
+      },
+      inflation_rate: {
+        title: '預期年化通貨膨脹率 (Inflation Rate)',
+        body: '衡量貨幣購買力隨時間縮水的速度。以 2.500% 通膨率計算，物價每 20 年會上漲約 63.86%，因此必須觀察「實質購買力總資產」才不會高估退休金。',
+        formula: '折現因子 = 1 ÷ (1 + 通膨率)^n'
+      },
+      chart_trajectories: {
+        title: '四軌動態曲線與里程碑讀圖指南',
+        body: '1. 紫藍實線（最終名目總資產）：帳戶帳面上的總金額。\n2. 青色實線（實質購買力總資產）：扣除通膨後，相當於今日物價的真實購買力。\n3. 翠綠實線（累積總利息）：純粹靠複利滾出來的淨獲利。\n4. 琥珀虛線（目前總投入金額）：你口袋實際拿出來投入的本金成本線。\n★ 曲線上的發光大圓點與旗標即為「複利里程碑」發生年度！',
+        formula: '當翠綠線向上穿越琥珀虛線 = 達成「複利黃金交叉」'
+      }
+    };
+
+    // ============================================================================
+    // 2. 全域狀態：儲存模擬資料與里程碑清單
+    // ============================================================================
+    let chartInstance = null;
+    let currentYearlyData = [];
+    let detectedMilestones = [];
+    let focusedYear = null; // 使用者點擊里程碑卡片或表格時鎖定的年份
+
+    const fmtCurrency = (val) => 'NT$' + Math.round(val).toLocaleString('zh-TW');
+    const fmtMan = (val) => {
+      if (Math.abs(val) >= 100000000) {
+        return 'NT$' + (val / 100000000).toFixed(2) + '億';
+      }
+      return 'NT$' + (val / 10000).toFixed(1) + '萬';
+    };
+
+    // 雙向同步控制
+    function syncFromSlider(key, val, decimals) {
+      const numEl = document.getElementById('num' + key);
+      if (numEl) {
+        numEl.value = decimals > 0 ? Number(val).toFixed(decimals) : Math.round(val);
+      }
+      calculate();
+    }
+
+    function syncFromNumber(key, rawVal) {
+      if (rawVal === '' || isNaN(Number(rawVal))) return;
+      const numVal = parseFloat(rawVal);
+      const rngEl = document.getElementById('rng' + key);
+      if (rngEl) {
+        const min = parseFloat(rngEl.min);
+        const max = parseFloat(rngEl.max);
+        rngEl.value = Math.min(max, Math.max(min, numVal));
+      }
+      calculate();
+    }
+
+    function formatDecimalInput(inputId, decimals) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      let val = parseFloat(el.value);
+      if (isNaN(val)) val = 0;
+      el.value = val.toFixed(decimals);
+      calculate();
+    }
+
+    function setExactLoanRate(rateVal) {
+      document.getElementById('numLoanRate').value = rateVal.toFixed(3);
+      document.getElementById('rngLoanRate').value = rateVal;
+      calculate();
+    }
+
+    function onLoanModeChange() {
+      const mode = document.querySelector('input[name="loanMode"]:checked').value;
+      const cardA = document.getElementById('cardModeA');
+      const cardB = document.getElementById('cardModeB');
+      const cardC = document.getElementById('cardModeC');
+      const loanSub = document.getElementById('loanSubOptions');
+
+      [cardA, cardB, cardC].forEach(c => {
+        c.className = 'flex items-start gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition';
+      });
+
+      const activeClass = 'flex items-start gap-3 p-3 rounded-xl border border-indigo-500 bg-indigo-950/25 cursor-pointer transition shadow-md shadow-indigo-950/40';
+      if (mode === 'external') cardB.className = activeClass;
+      if (mode === 'internal') cardC.className = activeClass;
+      if (mode === 'none') cardA.className = activeClass;
+
+      if (mode === 'none') {
+        loanSub.classList.add('opacity-40', 'pointer-events-none');
+      } else {
+        loanSub.classList.remove('opacity-40', 'pointer-events-none');
+      }
+      calculate();
+    }
+
+    function applyPreset(presetKey) {
+      const numRate = document.getElementById('numRate');
+      const rngRate = document.getElementById('rngRate');
+      const numYield = document.getElementById('numYield');
+      const rngYield = document.getElementById('rngYield');
+      const chkTax = document.getElementById('chkUSWithholdingTax');
+
+      if (presetKey === 'conservative') {
+        numRate.value = (8.000).toFixed(3);
+        rngRate.value = 8.000;
+        numYield.value = (2.000).toFixed(3);
+        rngYield.value = 2.000;
+        chkTax.checked = false;
+      } else if (presetKey === '0050') {
+        numRate.value = (9.500).toFixed(3);
+        rngRate.value = 9.500;
+        numYield.value = (3.000).toFixed(3);
+        rngYield.value = 3.000;
+        chkTax.checked = false;
+      } else if (presetKey === 'sp500') {
+        numRate.value = (10.200).toFixed(3);
+        rngRate.value = 10.200;
+        numYield.value = (1.600).toFixed(3);
+        rngYield.value = 1.600;
+        chkTax.checked = true;
+      } else if (presetKey === 'qqq') {
+        numRate.value = (10.630).toFixed(3);
+        rngRate.value = 10.630;
+        numYield.value = (0.600).toFixed(3);
+        rngYield.value = 0.600;
+        chkTax.checked = true;
+      }
+      calculate();
+    }
+
+    // ============================================================================
+    // 3. 核心財務工程計算引擎 & 智慧里程碑自動偵測器
+    // ============================================================================
+    function calculate() {
+      const pv = Math.max(0, parseFloat(document.getElementById('numPV').value) || 0);
+      const pmt = Math.max(0, parseFloat(document.getElementById('numPMT').value) || 0);
+      const nominalRatePct = Math.max(0, parseFloat(document.getElementById('numRate').value) || 0);
+      const divYieldPct = Math.max(0, Math.min(nominalRatePct, parseFloat(document.getElementById('numYield').value) || 0));
+      const years = Math.max(1, Math.min(60, parseInt(document.getElementById('numYears').value) || 20));
+      const loanRatePct = Math.max(0, parseFloat(document.getElementById('numLoanRate').value) || 0);
+      const loanYears = Math.max(1, Math.min(30, parseInt(document.getElementById('numLoanYears').value) || 7));
+      const inflationPct = Math.max(0, parseFloat(document.getElementById('numInflation').value) || 0);
+
+      const loanMode = document.querySelector('input[name="loanMode"]:checked').value;
+      const deductLoanInterest = document.getElementById('chkDeductLoanInterest').checked;
+      const applyUSTax = document.getElementById('chkUSWithholdingTax').checked;
+
+      const rNominal = nominalRatePct / 100;
+      const rYield = divYieldPct / 100;
+      const rTaxDrag = applyUSTax ? (rYield * 0.30) : 0;
+      const rEffective = Math.max(0, rNominal - rTaxDrag);
+      const rInflation = inflationPct / 100;
+
+      // 信貸本息均攤計算
+      let monthlyLoanPayment = 0;
+      let totalLoanPaid = 0;
+      let totalLoanInterest = 0;
+
+      if (loanMode !== 'none' && pv > 0) {
+        const mMonths = loanYears * 12;
+        const mRate = (loanRatePct / 100) / 12;
+        if (mRate > 0) {
+          monthlyLoanPayment = pv * (mRate * Math.pow(1 + mRate, mMonths)) / (Math.pow(1 + mRate, mMonths) - 1);
+        } else {
+          monthlyLoanPayment = pv / mMonths;
+        }
+        totalLoanPaid = monthlyLoanPayment * mMonths;
+        totalLoanInterest = Math.max(0, totalLoanPaid - pv);
+      }
+
+      const annualLoanPayment = monthlyLoanPayment * 12;
+      const annualLoanInterestPortion = loanYears > 0 ? (totalLoanInterest / loanYears) : 0;
+
+      currentYearlyData = [];
+      let balanceWithTax = pv;
+      let balanceNoTax = pv;
+      let cumulativeInvested = pv;
+      let cumulativeLoanInterestPaid = 0;
+
+      // 里程碑追蹤旗標 (確保每個里程碑只記錄首次達成的那一年)
+      const msTracker = {
+        qualitativeYear: null,   // 🌱 複利質變拐點 (當年投資淨收益 > 當年投入 PMT)
+        goldenCrossYear: null,   // ⚡ 黃金交叉日 (累積總利息 >= 目前總投入金額)
+        loanFreeYear: null,      // 🔓 信貸結清自由日
+        cost2xYear: null,        // 🚀 總資產達目前總投入 2 倍
+        cost3xYear: null,        // 🚀 總資產達目前總投入 3 倍
+        cost4xYear: null,        // 🚀 總資產達目前總投入 4 倍
+        cost5xYear: null,        // 🚀 總資產達目前總投入 5 倍
+        real2xYear: null,        // 🛡️ 實質購買力達目前總投入 2 倍
+        asset10MYear: null,      // 👑 名目總資產破 NT$1,000 萬
+        asset20MYear: null       // 👑 名目總資產破 NT$2,000 萬
+      };
+
+      for (let t = 0; t <= years; t++) {
+        let grossDividendThisYear = 0;
+        let taxWithheldThisYear = 0;
+        let loanOutflowThisYear = 0;
+        let annualInvestmentReturn = 0; // 當年度投資組合自己產生的複利淨收益
+
+        if (t > 0) {
+          const startBalance = balanceWithTax;
+          grossDividendThisYear = startBalance * rYield;
+          taxWithheldThisYear = applyUSTax ? (grossDividendThisYear * 0.30) : 0;
+          annualInvestmentReturn = startBalance * rEffective;
+
+          if (loanMode !== 'none' && t <= loanYears) {
+            loanOutflowThisYear = annualLoanPayment;
+            cumulativeLoanInterestPaid += annualLoanInterestPortion;
+          }
+
+          if (loanMode === 'internal') {
+            const netContribution = pmt - loanOutflowThisYear;
+            balanceWithTax = startBalance + annualInvestmentReturn + netContribution;
+            balanceNoTax = balanceNoTax * (1 + rNominal) + netContribution;
+            cumulativeInvested += netContribution;
+          } else {
+            balanceWithTax = startBalance + annualInvestmentReturn + pmt;
+            balanceNoTax = balanceNoTax * (1 + rNominal) + pmt;
+            cumulativeInvested += pmt;
+          }
+        }
+
+        const realBalance = balanceWithTax / Math.pow(1 + rInflation, t);
+        const rawPortfolioGain = balanceWithTax - cumulativeInvested;
+        const effectiveNetInterest = (loanMode !== 'none' && deductLoanInterest)
+          ? (rawPortfolioGain - cumulativeLoanInterestPaid)
+          : rawPortfolioGain;
+
+        const costMultiple = cumulativeInvested > 0 ? (balanceWithTax / cumulativeInvested) : 0;
+        const realMultiple = cumulativeInvested > 0 ? (realBalance / cumulativeInvested) : 0;
+
+        const yearMilestones = [];
+
+        if (t > 0) {
+          // 1. 🌱 複利質變拐點：當年複利收益 > 每年固定單筆投入 (若 PMT=0 則比較當年收益是否超過初始本金 12%)
+          const thresholdPMT = pmt > 0 ? pmt : (pv * 0.12);
+          if (msTracker.qualitativeYear === null && thresholdPMT > 0 && annualInvestmentReturn > thresholdPMT) {
+            msTracker.qualitativeYear = t;
+            yearMilestones.push({
+              id: 'qualitative',
+              year: t,
+              icon: '🌱',
+              shortLabel: '複利質變',
+              title: '複利質變拐點 (收益超越年投入)',
+              color: '#f59e0b',
+              badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+              targetDatasetIndex: 0, // 標記在紫藍主資產線或綠線
+              summary: `當年複利收益 ${fmtMan(annualInvestmentReturn)} > 年投入 ${fmtMan(thresholdPMT)}`,
+              detail: `第 ${t} 年是複利開始「質變」的關鍵年！這一年你的投資組合自動產生的淨收益（${fmtCurrency(annualInvestmentReturn)}）正式超越你每年手動投入的新資金（${fmtCurrency(thresholdPMT)}）。從這一年開始，錢滾錢的速度比你存錢還快！`
+            });
+          }
+
+          // 2. 🔓 信貸結清自由日
+          if (loanMode !== 'none' && pv > 0 && t === loanYears && msTracker.loanFreeYear === null) {
+            msTracker.loanFreeYear = t;
+            yearMilestones.push({
+              id: 'loan_free',
+              year: t,
+              icon: '🔓',
+              shortLabel: '信貸結清',
+              title: `信貸結清自由日 (${loanYears}年期滿)`,
+              color: '#f43f5e',
+              badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+              targetDatasetIndex: 0,
+              summary: `月付金 ${fmtCurrency(monthlyLoanPayment)} 歸零解放`,
+              detail: `第 ${t} 年底，你的 ${fmtCurrency(pv)} 信貸本息已全數償還完畢！從明年起，你每月不再需要支付 ${fmtCurrency(monthlyLoanPayment)}（每年省下 ${fmtCurrency(annualLoanPayment)}），而當初借入的本金已在市場滾出 ${fmtCurrency(balanceWithTax)} 的總資產！`
+            });
+          }
+
+          // 3. ⚡ 黃金交叉日：累積總利息 >= 目前總投入金額
+          if (msTracker.goldenCrossYear === null && cumulativeInvested > 0 && effectiveNetInterest >= cumulativeInvested) {
+            msTracker.goldenCrossYear = t;
+            yearMilestones.push({
+              id: 'golden_cross',
+              year: t,
+              icon: '⚡',
+              shortLabel: '黃金交叉 (利息>本金)',
+              title: '複利黃金交叉 (累積利息超越總成本)',
+              color: '#10b981',
+              badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+              targetDatasetIndex: 2, // 標記在綠色累積總利息線上
+              summary: `累積利息 ${fmtMan(effectiveNetInterest)} ≥ 總本金 ${fmtMan(cumulativeInvested)}`,
+              detail: `第 ${t} 年達成「複利黃金交叉」！圖表中的翠綠線（累積總利息 ${fmtCurrency(effectiveNetInterest)}）正式向上突破琥珀虛線（目前總投入本金 ${fmtCurrency(cumulativeInvested)}）。代表此時你帳戶裡超過一半以上的財富，都是市場複利幫你賺來的！`
+            });
+          }
+
+          // 4. 🚀 總資產達目前總投入金額 2倍 / 3倍 / 4倍 / 5倍
+          if (msTracker.cost2xYear === null && costMultiple >= 2.0) {
+            msTracker.cost2xYear = t;
+            // 若與黃金交叉同年，仍記錄在里程碑卡片中方便檢視
+            yearMilestones.push({
+              id: 'cost_2x',
+              year: t,
+              icon: '🚀',
+              shortLabel: '資產 2 倍',
+              title: '總資產達投入成本 2 倍 (2.0x)',
+              color: '#818cf8',
+              badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+              targetDatasetIndex: 0,
+              summary: `總資產 ${fmtMan(balanceWithTax)} (${costMultiple.toFixed(2)}x 總成本)`,
+              detail: `第 ${t} 年底，你的期末名目總資產達到 ${fmtCurrency(balanceWithTax)}，是目前累積總投入成本（${fmtCurrency(cumulativeInvested)}）的 ${costMultiple.toFixed(2)} 倍！`
+            });
+          }
+
+          if (msTracker.cost3xYear === null && costMultiple >= 3.0) {
+            msTracker.cost3xYear = t;
+            yearMilestones.push({
+              id: 'cost_3x',
+              year: t,
+              icon: '🚀',
+              shortLabel: '資產 3 倍',
+              title: '總資產達投入成本 3 倍 (3.0x)',
+              color: '#a855f7',
+              badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+              targetDatasetIndex: 0,
+              summary: `總資產 ${fmtMan(balanceWithTax)} (${costMultiple.toFixed(2)}x 總成本)`,
+              detail: `第 ${t} 年底，複利進入高速巡航期！期末名目總資產來到 ${fmtCurrency(balanceWithTax)}，正式突破累積投入成本（${fmtCurrency(cumulativeInvested)}）的 3 倍（${costMultiple.toFixed(2)}x），意思是每 1 元本金都替你帶回了超過 2 元的淨獲利！`
+            });
+          }
+
+          if (msTracker.cost4xYear === null && costMultiple >= 4.0) {
+            msTracker.cost4xYear = t;
+            yearMilestones.push({
+              id: 'cost_4x',
+              year: t,
+              icon: '🔥',
+              shortLabel: '資產 4 倍',
+              title: '總資產達投入成本 4 倍 (4.0x)',
+              color: '#ec4899',
+              badgeClass: 'bg-pink-500/20 text-pink-300 border-pink-500/40',
+              targetDatasetIndex: 0,
+              summary: `總資產 ${fmtMan(balanceWithTax)} (${costMultiple.toFixed(2)}x 總成本)`,
+              detail: `第 ${t} 年底，指數效應全面爆發！期末名目總資產高達 ${fmtCurrency(balanceWithTax)}，達到你累積投入總本金（${fmtCurrency(cumulativeInvested)}）的 ${costMultiple.toFixed(2)} 倍！複利產生的利息佔比已超過總資產的 75%！`
+            });
+          }
+
+          if (msTracker.cost5xYear === null && costMultiple >= 5.0) {
+            msTracker.cost5xYear = t;
+            yearMilestones.push({
+              id: 'cost_5x',
+              year: t,
+              icon: '🌟',
+              shortLabel: '資產 5 倍',
+              title: '總資產達投入成本 5 倍 (5.0x)',
+              color: '#f97316',
+              badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
+              targetDatasetIndex: 0,
+              summary: `總資產 ${fmtMan(balanceWithTax)} (${costMultiple.toFixed(2)}x 總成本)`,
+              detail: `第 ${t} 年底，總資產突破投入成本的 5 倍大關（${fmtCurrency(balanceWithTax)} vs 成本 ${fmtCurrency(cumulativeInvested)}），超過 80% 資產皆由複利創造！`
+            });
+          }
+
+          // 5. 👑 千萬資產俱樂部里程碑 (破 NT$1,000 萬 / NT$2,000 萬)
+          if (msTracker.asset10MYear === null && pv < 10000000 && balanceWithTax >= 10000000) {
+            msTracker.asset10MYear = t;
+            yearMilestones.push({
+              id: 'asset_10m',
+              year: t,
+              icon: '👑',
+              shortLabel: '破千萬資產',
+              title: '突破 NT$1,000 萬資產大關',
+              color: '#eab308',
+              badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',
+              targetDatasetIndex: 0,
+              summary: `名目總資產達 ${fmtMan(balanceWithTax)}`,
+              detail: `第 ${t} 年底，你的帳戶名目總資產正式跨越八位數門檻，達到 ${fmtCurrency(balanceWithTax)}（折合今日實質購買力為 ${fmtCurrency(realBalance)}）！`
+            });
+          }
+
+          if (msTracker.asset20MYear === null && pv < 20000000 && balanceWithTax >= 20000000) {
+            msTracker.asset20MYear = t;
+            yearMilestones.push({
+              id: 'asset_20m',
+              year: t,
+              icon: '💎',
+              shortLabel: '破兩千萬',
+              title: '突破 NT$2,000 萬資產大關',
+              color: '#38bdf8',
+              badgeClass: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+              targetDatasetIndex: 0,
+              summary: `名目總資產達 ${fmtMan(balanceWithTax)}`,
+              detail: `第 ${t} 年底，你的帳戶總資產正式突破兩千萬大關，來到 ${fmtCurrency(balanceWithTax)}！`
+            });
+          }
+
+          // 6. 🛡️ 實質購買力翻倍里程碑 (扣除通膨後仍達總成本 2 倍)
+          if (msTracker.real2xYear === null && rInflation > 0 && realMultiple >= 2.0) {
+            msTracker.real2xYear = t;
+            yearMilestones.push({
+              id: 'real_2x',
+              year: t,
+              icon: '🛡️',
+              shortLabel: '購買力 2 倍',
+              title: '實質購買力翻倍 (抗通膨真 2x)',
+              color: '#22d3ee',
+              badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+              targetDatasetIndex: 1, // 標記在青色實質購買力線上
+              summary: `實質購買力 ${fmtMan(realBalance)} (${realMultiple.toFixed(2)}x 成本)`,
+              detail: `第 ${t} 年底，即便扣除每年 ${inflationPct.toFixed(3)}% 的物價通膨折現，你的「實質購買力總資產」（${fmtCurrency(realBalance)}）依然達到累積總投入成本（${fmtCurrency(cumulativeInvested)}）的 ${realMultiple.toFixed(2)} 倍！這是真正戰勝通膨的購買力翻倍！`
+            });
+          }
+        }
+
+        currentYearlyData.push({
+          year: t,
+          invested: cumulativeInvested,
+          annualReturn: annualInvestmentReturn,
+          grossDiv: grossDividendThisYear,
+          taxWithheld: taxWithheldThisYear,
+          loanOutflow: loanOutflowThisYear,
+          netInterest: effectiveNetInterest,
+          nominalAsset: balanceWithTax,
+          realAsset: realBalance,
+          costMultiple: costMultiple,
+          realMultiple: realMultiple,
+          milestones: yearMilestones
+        });
+      }
+
+      // 彙整所有已觸發的里程碑清單 (依年份排序)
+      detectedMilestones = [];
+      currentYearlyData.forEach(row => {
+        row.milestones.forEach(m => detectedMilestones.push(m));
+      });
+
+      // 期末匯總數據
+      const lastRow = currentYearlyData[years];
+      const finalInvested = lastRow.invested;
+      const finalNominal = lastRow.nominalAsset;
+      const finalReal = lastRow.realAsset;
+      const finalInterest = lastRow.netInterest;
+      const totalTaxCompoundLoss = Math.max(0, balanceNoTax - balanceWithTax);
+      const multiple = finalInvested > 0 ? (finalNominal / finalInvested) : 0;
+      const investedSharePct = finalNominal > 0 ? (finalInvested / finalNominal * 100) : 0;
+      const purchasingPowerRetentionPct = finalNominal > 0 ? (finalReal / finalNominal * 100) : 100;
+
+      // 更新頂部 6 大 KPI 卡片
+      document.getElementById('kpiInvested').innerText = fmtCurrency(finalInvested);
+      document.getElementById('kpiInvestedSub').innerText = `佔最終名目資產 ${investedSharePct.toFixed(1)}%`;
+
+      document.getElementById('kpiNominalTotal').innerText = fmtCurrency(finalNominal);
+      document.getElementById('kpiNominalSub').innerText = `總本金放大倍數 ${multiple.toFixed(2)}x`;
+
+      document.getElementById('kpiRealTotal').innerText = fmtCurrency(finalReal);
+      document.getElementById('kpiRealSub').innerText = `通膨 ${inflationPct.toFixed(3)}% (保留 ${purchasingPowerRetentionPct.toFixed(1)}% 購買力)`;
+
+      document.getElementById('kpiInterestLabel').innerText = (loanMode !== 'none' && deductLoanInterest)
+        ? '累積淨利 (已扣信貸息)'
+        : '累積總利息 (帳面淨利)';
+      document.getElementById('kpiInterest').innerText = fmtCurrency(finalInterest);
+      document.getElementById('kpiCrossYear').innerText = msTracker.goldenCrossYear
+        ? `★ 黃金交叉：第 ${msTracker.goldenCrossYear} 年超越總本金`
+        : '★ 黃金交叉：期間內尚未超越本金';
+
+      document.getElementById('kpiTaxLoss').innerText = applyUSTax ? ('-' + fmtCurrency(totalTaxCompoundLoss)) : 'NT$0 (免預扣稅)';
+      document.getElementById('kpiEffectiveRate').innerText = `扣稅後實質年化：${(rEffective * 100).toFixed(3)}%`;
+
+      if (loanMode === 'none' || pv === 0) {
+        document.getElementById('kpiLoanMonthly').innerText = 'NT$0 / 月 (無信貸)';
+        document.getElementById('kpiLoanSub').innerText = '100% 自有資金零借款利息';
+      } else {
+        document.getElementById('kpiLoanMonthly').innerText = fmtCurrency(monthlyLoanPayment) + ' / 月';
+        document.getElementById('kpiLoanSub').innerText = `${loanYears}年總利息：${fmtCurrency(totalLoanInterest)} (${loanRatePct.toFixed(3)}%)`;
+      }
+
+      // 更新利差標籤
+      const spreadPct = (rEffective * 100) - (loanMode === 'none' ? 0 : loanRatePct);
+      const badgeSpread = document.getElementById('badgeSpread');
+      if (loanMode === 'none') {
+        badgeSpread.innerText = `無槓桿純複利 ${(rEffective * 100).toFixed(3)}%`;
+        badgeSpread.className = 'px-2.5 py-1 text-xs font-mono font-semibold rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/30';
+      } else {
+        badgeSpread.innerText = `扣稅後淨利差 ${spreadPct >= 0 ? '+' : ''}${spreadPct.toFixed(3)}%`;
+        badgeSpread.className = spreadPct >= 0
+          ? 'px-2.5 py-1 text-xs font-mono font-semibold rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+          : 'px-2.5 py-1 text-xs font-mono font-semibold rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30';
+      }
+
+      // 若原先鎖定的年份超過新設定的總年限，重置為黃金交叉年或最後一年
+      if (focusedYear !== null && focusedYear > years) {
+        focusedYear = null;
+      }
+
+      // 渲染里程碑卡片走廊、聚焦資訊卡、診斷面板、表格與圖表
+      renderMilestoneCards(msTracker, years);
+      updateSpotlightBanner(focusedYear !== null ? focusedYear : (msTracker.goldenCrossYear || years));
+      renderDiagnosticPanel({
+        loanMode, pv, pmt, years, nominalRatePct, divYieldPct, applyUSTax,
+        rEffectivePct: rEffective * 100, loanRatePct, loanYears, monthlyLoanPayment,
+        annualLoanPayment, totalLoanInterest, finalInvested, finalNominal, finalReal,
+        finalInterest, totalTaxCompoundLoss, goldenCrossYear: msTracker.goldenCrossYear,
+        inflationPct, deductLoanInterest
+      });
+      renderTable(loanMode, loanYears);
+      renderChartOnly();
+    }
+
+    // ============================================================================
+    // 4. 渲染智慧複利里程碑卡片走廊 & 互動式聚焦資訊窗
+    // ============================================================================
+    function renderMilestoneCards(msTracker, totalYears) {
+      const container = document.getElementById('milestoneCardsGrid');
+      if (!detectedMilestones.length) {
+        container.innerHTML = `<div class="col-span-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
+          目前參數與年限（${totalYears} 年）內尚未觸發特定倍數里程碑，建議拉長投資年限或調整投入金額以觀察複利轉折點。
+        </div>`;
+        return;
+      }
+
+      let html = '';
+      detectedMilestones.forEach((m, idx) => {
+        const isFocused = (focusedYear === m.year);
+        html += `
+          <div onclick="focusMilestoneYear(${m.year}, '${m.id}')"
+               onmouseenter="previewMilestoneYear(${m.year}, '${m.id}')"
+               class="milestone-card cursor-pointer rounded-xl p-3.5 bg-slate-950/90 border ${isFocused ? 'border-indigo-400 bg-indigo-950/30 active-milestone' : 'border-slate-800/90 hover:border-indigo-500/50'} flex flex-col justify-between gap-2">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="text-base leading-none">${m.icon}</span>
+                <span class="font-bold text-xs text-white">${m.title}</span>
+              </div>
+              <span class="px-2 py-0.5 text-[11px] font-mono font-bold rounded-full border shrink-0 ${m.badgeClass}">
+                第 ${m.year} 年
+              </span>
+            </div>
+            <div class="text-[11px] font-mono text-slate-300 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+              ${m.summary}
+            </div>
+            <p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+              ${m.detail}
+            </p>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // 更新圖表下方的「里程碑與年度深度剖析即時資訊卡」
+    function updateSpotlightBanner(yearNum, preferredMilestoneId = null) {
+      const box = document.getElementById('milestoneSpotlightBox');
+      const row = currentYearlyData[yearNum];
+      if (!row) return;
+
+      const msList = row.milestones || [];
+      let chosenMs = null;
+      if (preferredMilestoneId) {
+        chosenMs = msList.find(m => m.id === preferredMilestoneId) || msList[0];
+      } else if (msList.length > 0) {
+        chosenMs = msList[0];
+      }
+
+      const badgesHtml = msList.length > 0
+        ? msList.map(m => `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full border ${m.badgeClass}">${m.icon} ${m.title}</span>`).join(' ')
+        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-800 text-slate-300 border border-slate-700">📊 年度常規複利追蹤</span>`;
+
+      const explanationText = chosenMs
+        ? chosenMs.detail
+        : `第 ${row.year} 年底：目前累積投入總本金為 ${fmtCurrency(row.invested)}，當年新增複利收益為 ${fmtCurrency(row.annualReturn)}，期末名目總資產達 ${fmtCurrency(row.nominalAsset)}（為總投入成本的 ${row.costMultiple.toFixed(2)} 倍），扣除通膨後之實質購買力為 ${fmtCurrency(row.realAsset)}。`;
+
+      box.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-500/20 pb-2.5 mb-2.5">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2.5 py-1 rounded-lg bg-indigo-500 text-white font-mono font-bold text-xs shadow">
+              聚焦第 ${row.year} 年
+            </span>
+            ${badgesHtml}
+          </div>
+          <span class="text-[11px] text-indigo-300/90 font-mono">
+            總資產成本倍數：<strong class="text-white">${row.costMultiple.toFixed(2)}x</strong> ｜ 當年收益/年投入比：<strong class="text-emerald-300">${row.invested > 0 ? fmtCurrency(row.annualReturn) : 'NT$0'}</strong>
+          </span>
+        </div>
+        <p class="text-xs text-slate-200 leading-relaxed mb-3">
+          ${explanationText}
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
+          <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+            <div class="text-slate-400">目前總投入金額</div>
+            <div class="text-amber-400 font-bold mt-0.5">${fmtCurrency(row.invested)}</div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+            <div class="text-slate-400">累積總利息 (淨獲利)</div>
+            <div class="text-emerald-400 font-bold mt-0.5">${fmtCurrency(row.netInterest)}</div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+            <div class="text-slate-400">期末名目總資產</div>
+            <div class="text-indigo-300 font-bold mt-0.5">${fmtCurrency(row.nominalAsset)}</div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+            <div class="text-slate-400">實質購買力 (通膨折現)</div>
+            <div class="text-cyan-300 font-bold mt-0.5">${fmtCurrency(row.realAsset)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 點擊里程碑卡片或表格列時：鎖定該年度並在圖表上高亮顯示
+    function focusMilestoneYear(yearNum, milestoneId = null) {
+      focusedYear = yearNum;
+      updateSpotlightBanner(yearNum, milestoneId);
+      renderMilestoneCards({}, currentYearlyData.length - 1);
+      renderChartOnly();
+      triggerChartTooltipAtYear(yearNum);
+    }
+
+    // 滑鼠滑過里程碑卡片時：即時預覽該年度資訊並連動圖表
+    function previewMilestoneYear(yearNum, milestoneId = null) {
+      updateSpotlightBanner(yearNum, milestoneId);
+      triggerChartTooltipAtYear(yearNum);
+    }
+
+    function clearMilestoneFocus() {
+      focusedYear = null;
+      const defaultYear = detectedMilestones.find(m => m.id === 'golden_cross')?.year || (currentYearlyData.length - 1);
+      updateSpotlightBanner(defaultYear);
+      renderMilestoneCards({}, currentYearlyData.length - 1);
+      renderChartOnly();
+    }
+
+    // 程式化觸發 Chart.js 在特定年份的 Tooltip 與高亮點
+    function triggerChartTooltipAtYear(yearNum) {
+      if (!chartInstance || yearNum < 0 || yearNum >= currentYearlyData.length) return;
+      const activeElements = [
+        { datasetIndex: 0, index: yearNum },
+        { datasetIndex: 1, index: yearNum },
+        { datasetIndex: 2, index: yearNum },
+        { datasetIndex: 3, index: yearNum }
+      ];
+      chartInstance.setActiveElements(activeElements);
+      if (chartInstance.tooltip) {
+        chartInstance.tooltip.setActiveElements(activeElements, { x: 0, y: 0 });
+      }
+      chartInstance.update('none');
+    }
+
+    // ============================================================================
+    // 5. Chart.js 四軌動態曲線圖 + 自訂 Canvas 里程碑旗標繪製插件
+    // ============================================================================
+    const milestoneCanvasPlugin = {
+      id: 'milestoneCanvasPlugin',
+      afterDatasetsDraw(chart) {
+        const showFlags = document.getElementById('chkShowChartFlags')?.checked;
+        const { ctx, chartArea: { top, bottom, left, right } } = chart;
+
+        // 1. 若有鎖定聚焦年份 (focusedYear)，繪製垂直聚光燈導引線
+        if (focusedYear !== null && focusedYear >= 0 && focusedYear < currentYearlyData.length) {
+          const meta0 = chart.getDatasetMeta(0);
+          const pt = meta0.data[focusedYear];
+          if (pt) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = 'rgba(129, 140, 248, 0.75)';
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(pt.x, top);
+            ctx.lineTo(pt.x, bottom);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        if (!showFlags || !detectedMilestones.length) return;
+
+        // 2. 將同一年度的多個里程碑合併為單一精緻旗標，避免重疊
+        const groupedByYear = {};
+        detectedMilestones.forEach(m => {
+          if (!groupedByYear[m.year]) {
+            groupedByYear[m.year] = [];
+          }
+          groupedByYear[m.year].push(m);
+        });
+
+        const yearsWithMs = Object.keys(groupedByYear).map(Number).sort((a, b) => a - b);
+        ctx.save();
+        ctx.font = '600 11px Inter, system-ui, sans-serif';
+
+        // 記錄已繪製旗標的區塊以自動錯開高度防止碰撞
+        const placedBoxes = [];
+
+        yearsWithMs.forEach((yr, idx) => {
+          const msGroup = groupedByYear[yr];
+          // 優先挑選黃金交叉標記在綠線，購買力標記在青線，其餘標記在紫藍主資產線
+          const primaryMs = msGroup.find(m => m.id === 'golden_cross') || msGroup[0];
+          const dsIndex = primaryMs.targetDatasetIndex || 0;
+          const meta = chart.getDatasetMeta(dsIndex);
+          const point = meta?.data[yr];
+          if (!point) return;
+
+          const px = point.x;
+          const py = point.y;
+
+          // 組合簡短旗標文字 (例如: "⚡第10年: 黃金交叉")
+          const shortTitles = msGroup.slice(0, 2).map(m => m.shortLabel).join(' / ');
+          const badgeText = `${primaryMs.icon} 第${yr}年: ${shortTitles}`;
+
+          const textWidth = ctx.measureText(badgeText).width;
+          const boxW = textWidth + 14;
+          const boxH = 22;
+
+          // 預設放在資料點上方，並依序錯開高度避免相鄰年份重疊
+          let offsetY = (idx % 2 === 0) ? -34 : -58;
+          if (primaryMs.id === 'golden_cross') {
+            offsetY = 20; // 黃金交叉放在交點下方更清晰
+          }
+
+          let boxX = px - boxW / 2;
+          let boxY = py + offsetY;
+
+          // 邊界防呆
+          boxX = Math.max(left + 4, Math.min(right - boxW - 4, boxX));
+          boxY = Math.max(top + 4, Math.min(bottom - boxH - 4, boxY));
+
+          // 簡單碰撞檢查與微調
+          for (const prev of placedBoxes) {
+            const overlapX = !(boxX + boxW + 4 < prev.x || boxX > prev.x + prev.w + 4);
+            const overlapY = !(boxY + boxH + 4 < prev.y || boxY > prev.y + prev.h + 4);
+            if (overlapX && overlapY) {
+              boxY = Math.max(top + 4, prev.y - boxH - 6);
+            }
+          }
+          placedBoxes.push({ x: boxX, y: boxY, w: boxW, h: boxH });
+
+          // 繪製連接線
+          ctx.beginPath();
+          ctx.setLineDash([2, 2]);
+          ctx.strokeStyle = primaryMs.color || '#818cf8';
+          ctx.lineWidth = 1.2;
+          ctx.moveTo(px, py);
+          ctx.lineTo(boxX + boxW / 2, boxY + (boxY < py ? boxH : 0));
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // 繪製圓角膠囊背景
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+          ctx.strokeStyle = primaryMs.color || '#818cf8';
+          ctx.lineWidth = (focusedYear === yr) ? 2 : 1.2;
+
+          ctx.beginPath();
+          const r = 6;
+          ctx.moveTo(boxX + r, boxY);
+          ctx.lineTo(boxX + boxW - r, boxY);
+          ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
+          ctx.lineTo(boxX + boxW, boxY + boxH - r);
+          ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
+          ctx.lineTo(boxX + r, boxY + boxH);
+          ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
+          ctx.lineTo(boxX, boxY + r);
+          ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 繪製旗標文字
+          ctx.fillStyle = '#f8fafc';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(badgeText, boxX + 7, boxY + boxH / 2);
+        });
+
+        ctx.restore();
+      }
+    };
+
+    function renderChartOnly() {
+      const labels = currentYearlyData.map(r => '第 ' + r.year + ' 年');
+      const dataNominal = currentYearlyData.map(r => Math.round(r.nominalAsset));
+      const dataReal = currentYearlyData.map(r => Math.round(r.realAsset));
+      const dataInterest = currentYearlyData.map(r => Math.round(r.netInterest));
+      const dataInvested = currentYearlyData.map(r => Math.round(r.invested));
+
+      // 為達成里程碑的年份設定放大發光圓點
+      const nominalPointRadii = currentYearlyData.map(r => {
+        if (focusedYear === r.year) return 7;
+        return r.milestones.length > 0 ? 5.5 : 2;
+      });
+      const nominalPointColors = currentYearlyData.map(r => {
+        if (focusedYear === r.year) return '#ffffff';
+        return r.milestones.length > 0 ? '#fbbf24' : '#818cf8';
+      });
+
+      const interestPointRadii = currentYearlyData.map(r => {
+        const hasCross = r.milestones.some(m => m.id === 'golden_cross');
+        if (focusedYear === r.year || hasCross) return 6.5;
+        return 1.8;
+      });
+      const interestPointColors = currentYearlyData.map(r => {
+        const hasCross = r.milestones.some(m => m.id === 'golden_cross');
+        return hasCross ? '#fde047' : '#34d399';
+      });
+
+      const ctx = document.getElementById('compoundChart').getContext('2d');
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        plugins: [milestoneCanvasPlugin],
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '最終名目總資產 (帳面本利和)',
+              data: dataNominal,
+              borderColor: '#818cf8',
+              backgroundColor: 'rgba(129, 140, 248, 0.14)',
+              borderWidth: 2.6,
+              pointRadius: nominalPointRadii,
+              pointHoverRadius: 7,
+              pointBackgroundColor: nominalPointColors,
+              pointBorderColor: '#0f172a',
+              pointBorderWidth: 1.5,
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: '實質購買力總資產 (通膨折現後)',
+              data: dataReal,
+              borderColor: '#22d3ee',
+              backgroundColor: 'rgba(34, 211, 238, 0.08)',
+              borderWidth: 2.2,
+              pointRadius: 2,
+              pointHoverRadius: 6,
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: '累積總利息 (淨獲利)',
+              data: dataInterest,
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52, 211, 153, 0.06)',
+              borderWidth: 2.2,
+              pointRadius: interestPointRadii,
+              pointHoverRadius: 6.5,
+              pointBackgroundColor: interestPointColors,
+              fill: false,
+              tension: 0.3
+            },
+            {
+              label: '目前總投入金額 (累積成本線)',
+              data: dataInvested,
+              borderColor: '#fbbf24',
+              borderDash: [6, 4],
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              fill: false,
+              tension: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onHover: (event, activeElements) => {
+            if (activeElements && activeElements.length > 0) {
+              const idx = activeElements[0].index;
+              updateSpotlightBanner(idx);
+            }
+          },
+          onClick: (event, activeElements) => {
+            if (activeElements && activeElements.length > 0) {
+              const idx = activeElements[0].index;
+              focusMilestoneYear(idx);
+            }
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: '#e2e8f0',
+                font: { family: 'Inter', size: 11, weight: '600' },
+                usePointStyle: true,
+                padding: 14
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(9, 13, 22, 0.96)',
+              titleColor: '#ffffff',
+              bodyColor: '#cbd5e1',
+              borderColor: '#6366f1',
+              borderWidth: 1.2,
+              padding: 12,
+              bodyFont: { family: 'JetBrains Mono', size: 11.5 },
+              callbacks: {
+                title: function(tooltipItems) {
+                  if (!tooltipItems.length) return '';
+                  const yr = tooltipItems[0].dataIndex;
+                  const row = currentYearlyData[yr];
+                  return `第 ${yr} 年 ｜ 總資產成本倍數：${row ? row.costMultiple.toFixed(2) + 'x' : ''}`;
+                },
+                beforeBody: function(tooltipItems) {
+                  if (!tooltipItems.length) return [];
+                  const yr = tooltipItems[0].dataIndex;
+                  const row = currentYearlyData[yr];
+                  if (!row || !row.milestones.length) return [];
+                  const lines = ['🏆 本年度達成里程碑：'];
+                  row.milestones.forEach(m => {
+                    lines.push(`   ${m.icon} ${m.title}`);
+                  });
+                  lines.push('────────────────────────');
+                  return lines;
+                },
+                label: function(context) {
+                  return ' ' + context.dataset.label + ': NT$' + Math.round(context.parsed.y).toLocaleString('zh-TW');
+                },
+                afterBody: function(tooltipItems) {
+                  if (!tooltipItems.length) return [];
+                  const yr = tooltipItems[0].dataIndex;
+                  const row = currentYearlyData[yr];
+                  if (!row || yr === 0) return [];
+                  return [
+                    '────────────────────────',
+                    ` 📈 當年新增複利收益: ${fmtCurrency(row.annualReturn)}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#94a3b8', font: { size: 11 } },
+              grid: { color: 'rgba(30, 41, 59, 0.6)' }
+            },
+            y: {
+              ticks: {
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 11 },
+                callback: function(value) {
+                  if (Math.abs(value) >= 100000000) {
+                    return 'NT$' + (value / 100000000).toFixed(1) + '億';
+                  }
+                  return 'NT$' + Math.round(value / 10000).toLocaleString('zh-TW') + '萬';
+                }
+              },
+              grid: { color: 'rgba(30, 41, 59, 0.6)' }
+            }
+          }
+        }
+      });
+    }
+
+    // ============================================================================
+    // 6. 智慧財務診斷報告與逐年明細表渲染 (含里程碑徽章)
+    // ============================================================================
+    function renderDiagnosticPanel(d) {
+      const box = document.getElementById('diagnosticPanel');
+      let modeDesc = '';
+      if (d.loanMode === 'external') {
+        modeDesc = `<div class="flex items-start gap-2">
+          <span class="text-indigo-400 font-bold">● 本業薪水獨立還貸檢核：</span>
+          <span>前 <strong>${d.loanYears} 年</strong>每月需從本業薪水支付信貸月付金 <strong class="text-rose-400 font-mono">${fmtCurrency(d.monthlyLoanPayment)}</strong>（每年還款 ${fmtCurrency(d.annualLoanPayment)}），加上每年固定投入 <strong class="text-indigo-300 font-mono">${fmtCurrency(d.pmt)}</strong>，前 ${d.loanYears} 年每年需具備 <strong class="text-amber-300 font-mono">${fmtCurrency(d.annualLoanPayment + d.pmt)}</strong> 的自由現金流。因為完全不動用投資池，期初 ${fmtCurrency(d.pv)} 能完整享受 ${d.years} 年 ${d.rEffectivePct.toFixed(3)}% 的不間斷複利。</span>
+        </div>`;
+      } else if (d.loanMode === 'internal') {
+        modeDesc = `<div class="flex items-start gap-2">
+          <span class="text-amber-400 font-bold">● 投資池／每年投入內扣還貸檢核：</span>
+          <span>前 <strong>${d.loanYears} 年</strong>每年需從投入資金或投資池中內扣 <strong class="text-rose-400 font-mono">${fmtCurrency(d.annualLoanPayment)}</strong> 償還信貸（每月 ${fmtCurrency(d.monthlyLoanPayment)}）。當年度淨投入變更為 <strong class="font-mono text-amber-300">${fmtCurrency(d.pmt - d.annualLoanPayment)}</strong>，雖然免去額外薪水還款壓力，但前期複利基數會受到削減。</span>
+        </div>`;
+      } else {
+        modeDesc = `<div class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">● 100% 自有資金檢核：</span>
+          <span>期初單筆投入自有存款 <strong class="text-indigo-300 font-mono">${fmtCurrency(d.pv)}</strong>，無任何信貸還款與利息壓力，每年穩定追加 <strong class="text-indigo-300 font-mono">${fmtCurrency(d.pmt)}</strong>。</span>
+        </div>`;
+      }
+
+      const taxAndInflationDesc = `<div class="flex items-start gap-2 pt-1.5 border-t border-slate-800/80">
+        <span class="text-cyan-400 font-bold">● 稅費與通膨雙重壓力測試：</span>
+        <span>名目年化總報酬率 <strong>${d.nominalRatePct.toFixed(3)}%</strong>（含股息殖利率 ${d.divYieldPct.toFixed(3)}%），${d.applyUSTax ? `扣除美股 30% 股息預扣稅後，實質滾動年化報酬率為 <strong class="text-orange-300 font-mono">${d.rEffectivePct.toFixed(3)}%</strong>（${d.years} 年累積少滾出 ${fmtCurrency(d.totalTaxCompoundLoss)}）` : '目前設定為免股息預扣稅（如台股 0050）'}。再經過每年 <strong>${d.inflationPct.toFixed(3)}%</strong> 通膨折現後，第 ${d.years} 年底的名目資產 <strong class="text-indigo-300 font-mono">${fmtCurrency(d.finalNominal)}</strong> 相當於今日物價的實質購買力為 <strong class="text-cyan-300 font-mono">${fmtCurrency(d.finalReal)}</strong>。</span>
+      </div>`;
+
+      box.innerHTML = modeDesc + taxAndInflationDesc;
+    }
+
+    function renderTable(loanMode, loanYears) {
+      const tbody = document.getElementById('yearlyTableBody');
+      let html = '';
+
+      for (let i = 1; i < currentYearlyData.length; i++) {
+        const row = currentYearlyData[i];
+        let loanTag = '<span class="text-slate-500">無信貸</span>';
+        if (loanMode !== 'none') {
+          if (row.year <= loanYears && row.loanOutflow > 0) {
+            loanTag = loanMode === 'external'
+              ? `<span class="text-rose-400">${fmtCurrency(row.loanOutflow)} <span class="text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300">薪水外付</span></span>`
+              : `<span class="text-amber-400">${fmtCurrency(row.loanOutflow)} <span class="text-[10px] px-1 py-0.5 rounded bg-amber-950 text-amber-300">池內扣除</span></span>`;
+          } else {
+            loanTag = '<span class="text-emerald-400/80">✓ 信貸已結清</span>';
+          }
+        }
+
+        const hasMilestone = row.milestones.length > 0;
+        const isCross = row.milestones.some(m => m.id === 'golden_cross');
+        const rowClass = isCross
+          ? 'bg-emerald-950/35 border-l-4 border-l-emerald-400 font-semibold cursor-pointer hover:bg-emerald-900/40 transition'
+          : (hasMilestone
+              ? 'bg-indigo-950/25 border-l-4 border-l-indigo-400 cursor-pointer hover:bg-indigo-900/30 transition'
+              : 'hover:bg-slate-800/40 cursor-pointer transition');
+
+        const milestoneBadges = row.milestones.map(m =>
+          `<span class="inline-block ml-1 px-1.5 py-0.5 text-[10px] rounded border ${m.badgeClass}">${m.icon}${m.shortLabel}</span>`
+        ).join('');
+
+        html += `<tr onclick="focusMilestoneYear(${row.year})" class="${rowClass}">
+          <td class="py-2.5 px-3.5 whitespace-nowrap text-slate-200">
+            第 ${row.year} 年 ${milestoneBadges}
+          </td>
+          <td class="py-2.5 px-3.5 whitespace-nowrap text-amber-400">${fmtCurrency(row.invested)}</td>
+          <td class="py-2.5 px-3.5 whitespace-nowrap text-emerald-300">+${fmtCurrency(row.annualReturn)}</td>
+          <td class="py-2.5 px-3.5 whitespace-nowrap">
+            <span class="text-sky-300">${fmtCurrency(row.grossDiv)}</span>
+            <span class="text-orange-400/90 text-[11px] ml-1">(-稅 ${fmtCurrency(row.taxWithheld)})</span>
+          </td>
+          <td class="py-2.5 px-3.5 whitespace-nowrap">${loanTag}</td>
+          <td class="py-2.5 px-3.5 whitespace-nowrap ${row.netInterest >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${fmtCurrency(row.netInterest)}</td>
+          <td class="py-2.5 px-3.5 whitespace-nowrap text-indigo-300 font-bold">
+            ${fmtCurrency(row.nominalAsset)}
+            <span class="text-[10px] text-slate-400 font-normal ml-1">(${row.costMultiple.toFixed(2)}x)</span>
+          </td>
+          <td class="py-2.5 px-3.5 whitespace-nowrap text-cyan-300 font-semibold">${fmtCurrency(row.realAsset)}</td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+    }
+
+    // ============================================================================
+    // 7. 互動式 '?' 名詞解釋氣泡窗與 CSV 匯出功能
+    // ============================================================================
+    const tooltipEl = document.getElementById('globalTooltip');
+    const tooltipTitleEl = document.getElementById('tooltipTitle');
+    const tooltipBodyEl = document.getElementById('tooltipBody');
+    const tooltipFormulaEl = document.getElementById('tooltipFormula');
+
+    function showTooltipForBadge(badgeEl, termKey) {
+      const info = TERM_GLOSSARY[termKey];
+      if (!info) return;
+
+      tooltipTitleEl.innerText = info.title;
+      tooltipBodyEl.innerText = info.body;
+      if (info.formula) {
+        tooltipFormulaEl.innerText = info.formula;
+        tooltipFormulaEl.classList.remove('hidden');
+      } else {
+        tooltipFormulaEl.classList.add('hidden');
+      }
+
+      tooltipEl.classList.remove('hidden');
+
+      const rect = badgeEl.getBoundingClientRect();
+      const ttWidth = tooltipEl.offsetWidth || 320;
+      const ttHeight = tooltipEl.offsetHeight || 180;
+
+      let left = rect.left - ttWidth / 2 + 10;
+      let top = rect.bottom + 10;
+
+      const maxLeft = window.innerWidth - ttWidth - 16;
+      left = Math.max(12, Math.min(maxLeft, left));
+      if (rect.bottom + ttHeight + 24 > window.innerHeight) {
+        top = Math.max(12, rect.top - ttHeight - 10);
+      }
+
+      tooltipEl.style.left = left + 'px';
+      tooltipEl.style.top = top + 'px';
+    }
+
+    function openTermModal(termKey) {
+      const info = TERM_GLOSSARY[termKey];
+      if (!info) return;
+      tooltipTitleEl.innerText = info.title;
+      tooltipBodyEl.innerText = info.body;
+      if (info.formula) {
+        tooltipFormulaEl.innerText = info.formula;
+        tooltipFormulaEl.classList.remove('hidden');
+      } else {
+        tooltipFormulaEl.classList.add('hidden');
+      }
+      tooltipEl.classList.remove('hidden');
+      tooltipEl.style.left = Math.max(16, (window.innerWidth - 340) / 2) + 'px';
+      tooltipEl.style.top = '120px';
+    }
+
+    function hideTooltip() {
+      tooltipEl.classList.add('hidden');
+    }
+
+    function initHelpBadges() {
+      const badges = document.querySelectorAll('.help-badge');
+      badges.forEach(badge => {
+        const term = badge.getAttribute('data-term');
+        badge.addEventListener('mouseenter', () => showTooltipForBadge(badge, term));
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showTooltipForBadge(badge, term);
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!tooltipEl.contains(e.target) && !e.target.classList.contains('help-badge')) {
+          hideTooltip();
+        }
+      });
+    }
+
+    function exportCSV() {
+      let csv = '\uFEFF年度,達成里程碑,目前總投入金額(NT$),當年新增複利收益(NT$),當年毛股息(NT$),美股30%預扣稅(NT$),信貸年還款支出(NT$),累積總利息淨利(NT$),期末名目總資產(NT$),成本放大倍數,期末實質購買力資產(NT$)\n';
+      currentYearlyData.forEach(r => {
+        if (r.year === 0) return;
+        const msNames = r.milestones.map(m => m.shortLabel).join(' / ') || '-';
+        csv += `第${r.year}年,${msNames},${Math.round(r.invested)},${Math.round(r.annualReturn)},${Math.round(r.grossDiv)},${Math.round(r.taxWithheld)},${Math.round(r.loanOutflow)},${Math.round(r.netInterest)},${Math.round(r.nominalAsset)},${r.costMultiple.toFixed(2)}x,${Math.round(r.realAsset)}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '量化複利與里程碑試算明細_v3.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    window.onload = function() {
+      initHelpBadges();
+      calculate();
+    };
+  </script>
+</body>
+</html>
